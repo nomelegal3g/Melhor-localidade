@@ -22,6 +22,17 @@
       "otimo": 500,
       "limite": 2000,
       "peso": 2
-    }
+    },
+    {"id": "Mercados",
+      "nome": "Mercados por perto",
+      "rotulo": "Mercados e Hipermercados",
+      "fontes": [
+        { "arquivo": "SUPERMERCADOS.json", "tipo": 'Supermercados', "cor": "#fh6d90" }
+      ],
+      "campoNome": "NOME_FANTASIA",
+      "melhor": "perto",
+      "otimo": 500,
+      "limite": 2000,
+      "peso": 2}
   ]
 }
