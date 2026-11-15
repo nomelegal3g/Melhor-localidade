@@ -2,6 +2,7 @@
   "_como_usar": [
     "Cada item de 'criterios' vira um cartão com peso na ferramenta. Depois de editar este arquivo, rode: node preparar_dados.js",
     "arquivo: GeoJSON na mesma pasta (pontos, linhas ou polígonos; EPSG:31983 do BHMap ou latitude/longitude).",
+    "Para juntar vários arquivos num cartão só, use 'fontes' no lugar de 'arquivo' e 'cor': uma lista de { arquivo, tipo, cor }. Vale o item mais próximo de qualquer arquivo.",
     "melhor: 'perto' (quanto mais perto, melhor) ou 'longe' (quanto mais longe, melhor).",
     "otimo: distância em metros que recebe nota máxima. limite: distância em metros que recebe nota zero.",
     "peso: de 0 a 10 (0 = aparece no mapa, mas não entra na nota). cor: cor no mapa.",
@@ -9,28 +10,18 @@
   ],
   "criterios": [
     {
-      "id": "emei",
-      "nome": "EMEI (educação infantil) por perto",
-      "rotulo": "EMEI",
-      "arquivo": "ESCOLAS_MUNICIPAIS_EDUCACAO_INFANTIL.json",
+      "id": "escolas",
+      "nome": "Escola municipal por perto",
+      "rotulo": "Escola municipal",
+      "fontes": [
+        { "arquivo": "ESCOLAS_MUNICIPAIS_EDUCACAO_INFANTIL.json", "tipo": "EMEI (educação infantil)", "cor": "#ff6d00" },
+        { "arquivo": "ESCOLAS_MUNICIPAIS_ENSINO_FUNDAMENTAL.json", "tipo": "Ensino fundamental", "cor": "#111111" }
+      ],
       "campoNome": "NOME",
       "melhor": "perto",
       "otimo": 500,
       "limite": 2000,
-      "peso": 2,
-      "cor": "#ff6d00"
-    },
-    {
-      "id": "fundamental",
-      "nome": "Escola municipal de ensino fundamental por perto",
-      "rotulo": "Escola fundamental",
-      "arquivo": "ESCOLAS_MUNICIPAIS_ENSINO_FUNDAMENTAL.json",
-      "campoNome": "NOME",
-      "melhor": "perto",
-      "otimo": 500,
-      "limite": 2000,
-      "peso": 2,
-      "cor": "#111111"
+      "peso": 2
     }
   ]
 }
