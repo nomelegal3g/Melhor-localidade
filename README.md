@@ -1,6 +1,6 @@
 # Compra Casa BH
 
-**Acesse a ferramenta: https://nomelegal3g.github.io/compra-casa-bh/** (funciona no navegador, sem instalar nada)
+**Acesse a ferramenta: https://nomelegal3g.github.io/Melhor-localidade/** (funciona no navegador, sem instalar nada)
 
 Ferramenta de apoio à decisão de compra de imóvel em Belo Horizonte. Ela lê dados geográficos abertos da Prefeitura (BHMap) em GeoJSON e colore a cidade inteira com uma nota de 0 a 100, em células de 100 m, para mostrar as **áreas de interesse** segundo critérios que você pondera:
 
@@ -11,7 +11,7 @@ Ferramenta de apoio à decisão de compra de imóvel em Belo Horizonte. Ela lê 
 
 ## Como usar
 
-Abra o [link da ferramenta](https://nomelegal3g.github.io/compra-casa-bh/) ou, numa cópia local, o arquivo `index.html`. Não precisa instalar nada; é necessário internet para o mapa de fundo e para a busca de endereço.
+Abra o [link da ferramenta](https://nomelegal3g.github.io/Melhor-localidade/) ou, numa cópia local, o arquivo `index.html`. Não precisa instalar nada; é necessário internet para o mapa de fundo e para a busca de endereço.
 
 1. Clique no mapa, ou busque um endereço, e escolha **Usar como destino**. Pode ter vários.
 2. Ajuste pesos e limites de cada critério no painel. O mapa recalcula na hora.
