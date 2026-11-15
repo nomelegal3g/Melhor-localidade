@@ -268,13 +268,17 @@ if (fs.existsSync(arqCrit)) {
     const erro = m => { throw new Error(`criterios.json, critério "${c.id || c.nome || '?'}": ${m}`); };
     if (!/^[a-z0-9_]+$/i.test(c.id || '')) erro('"id" é obrigatório e só pode ter letras, números e _');
     if (ids.has(c.id)) erro('"id" repetido'); ids.add(c.id);
-    if (!c.nome || !c.arquivo) erro('"nome" e "arquivo" são obrigatórios');
+    // "fontes" junta vários arquivos num critério só (ex.: EMEIs + escolas de ensino fundamental); vale o item mais próximo de qualquer um
+    const fontes = Array.isArray(c.fontes) ? c.fontes : c.arquivo ? [{ arquivo: c.arquivo, cor: c.cor, tipo: c.rotulo }] : [];
+    if (!c.nome || !fontes.length || fontes.some(o => !o || !o.arquivo)) erro('"nome" e "arquivo" (ou "fontes", cada uma com "arquivo") são obrigatórios');
     if (c.melhor !== 'perto' && c.melhor !== 'longe') erro('"melhor" deve ser "perto" ou "longe"');
     if (!(c.otimo >= 0) || !(c.limite >= 0) || c.otimo === c.limite) erro('"otimo" e "limite" devem ser distâncias em metros, diferentes entre si');
     if ((c.melhor === 'perto') !== (c.otimo < c.limite)) erro(c.melhor === 'perto' ? 'com melhor = "perto", "otimo" deve ser menor que "limite"' : 'com melhor = "longe", "otimo" deve ser maior que "limite"');
-    if (!fs.existsSync(path.join(DIR, c.arquivo))) { console.warn(`  AVISO: ${c.arquivo} não está na pasta; critério "${c.id}" ignorado.`); continue; }
-    const { feicoes, conv } = carregarCriterio(c.arquivo);
-    const d = new Uint16Array(NX * NY).fill(65535), f = [];
+    const d = new Uint16Array(NX * NY).fill(65535), f = [], fontesOk = [];
+    for (const fonte of fontes) {
+    if (!fs.existsSync(path.join(DIR, fonte.arquivo))) { console.warn(`  AVISO: ${fonte.arquivo} não está na pasta; ignorado no critério "${c.id}".`); continue; }
+    const { feicoes, conv } = carregarCriterio(fonte.arquivo);
+    const s = fontesOk.length; fontesOk.push({ tipo: fonte.tipo || '', cor: fonte.cor || c.cor || '#e65100' });
     for (const ft of feicoes) {
       const g = ft.geometry; if (!g) continue;
       const p = ft.properties || {}, n = String(p[c.campoNome || 'NOME'] ?? p.NOME ?? p.nome ?? p.name ?? '');
@@ -283,16 +287,17 @@ if (fs.existsSync(arqCrit)) {
       const linhas_ = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : null;
       const pols = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : null;
       if (pontos) for (const q of pontos) {
-        const [x, y] = conv(q[0], q[1]); f.push({ n, g: 0, c: [x, y] });
+        const [x, y] = conv(q[0], q[1]); f.push({ n, s, g: 0, c: [x, y] });
         for (let k = 0; k < NX * NY; k++) { if (celBairro[k] < 0) continue;
           const v = Math.hypot((k % NX + .5) * CELULA - x, (Math.floor(k / NX) + .5) * CELULA - y); if (v < d[k]) d[k] = v; }
-      } else if (linhas_) { const aneis = linhas_.map(anel); distAneis(d, aneis, false); f.push({ n, g: 1, c: aneis.map(a => a.flat()) }); }
-      else if (pols) for (const pol of pols) { const aneis = pol.map(anel); distAneis(d, aneis, true); f.push({ n, g: 2, c: aneis.map(a => a.flat()) }); }
+      } else if (linhas_) { const aneis = linhas_.map(anel); distAneis(d, aneis, false); f.push({ n, s, g: 1, c: aneis.map(a => a.flat()) }); }
+      else if (pols) for (const pol of pols) { const aneis = pol.map(anel); distAneis(d, aneis, true); f.push({ n, s, g: 2, c: aneis.map(a => a.flat()) }); }
     }
-    if (!f.length) { console.warn(`  AVISO: ${c.arquivo} não tem feições com geometria; critério "${c.id}" ignorado.`); continue; }
+    }
+    if (!f.length) { console.warn(`  AVISO: critério "${c.id}" ignorado (nenhum arquivo encontrado ou sem feições com geometria).`); continue; }
     extras.push({ id: c.id, nome: c.nome, rotulo: c.rotulo || c.nome, melhor: c.melhor, otimo: c.otimo, limite: c.limite,
-      peso: Math.max(0, Math.min(10, c.peso ?? 1)), eliminar: !!c.eliminar, mostrar: c.mostrar !== false, cor: c.cor || '#e65100', f, dGrade: d });
-    console.log(`  critério "${c.id}": ${f.length} feições de ${c.arquivo}`);
+      peso: Math.max(0, Math.min(10, c.peso ?? 1)), eliminar: !!c.eliminar, mostrar: c.mostrar !== false, cor: fontesOk[0].cor, fontes: fontesOk, f, dGrade: d });
+    console.log(`  critério "${c.id}": ${f.length} feições de ${fontesOk.length} arquivo(s)`);
   }
 }
 

@@ -1,15 +1,17 @@
 # Compra Casa BH
 
+**Acesse a ferramenta: https://nomelegal3g.github.io/Melhor-localidade/** (funciona no navegador, sem instalar nada)
+
 Ferramenta de apoio à decisão de compra de imóvel em Belo Horizonte. Ela lê dados geográficos abertos da Prefeitura (BHMap) em GeoJSON e colore a cidade inteira com uma nota de 0 a 100, em células de 100 m, para mostrar as **áreas de interesse** segundo critérios que você pondera:
 
 - **Tempo de ônibus até os seus destinos** (trabalho, escola, família), com até uma baldeação.
 - **Ônibus perto de casa**: quantas linhas diferentes param a uma caminhada do imóvel.
-- **Distância de vilas e favelas**.
-- **Critérios extras de distância**, declarados em `criterios.json` (já vêm EMEIs e escolas municipais de ensino fundamental).
+- **Distância de vilas e favelas** (inclui os loteamentos públicos de interesse social). Por padrão, áreas a menos de 50 m são eliminadas.
+- **Critérios extras de distância**, declarados em `criterios.json` (já vem "Escola municipal por perto", que junta EMEIs e escolas de ensino fundamental).
 
 ## Como usar
 
-Abra `index.html` no navegador (ou a versão publicada no GitHub Pages deste repositório). Não precisa instalar nada; é necessário internet para o mapa de fundo e para a busca de endereço.
+Abra o [link da ferramenta](https://nomelegal3g.github.io/Melhor-localidade/) ou, numa cópia local, o arquivo `index.html`. Não precisa instalar nada; é necessário internet para o mapa de fundo e para a busca de endereço.
 
 1. Clique no mapa, ou busque um endereço, e escolha **Usar como destino**. Pode ter vários.
 2. Ajuste pesos e limites de cada critério no painel. O mapa recalcula na hora.
@@ -54,6 +56,25 @@ Critérios de distância (centros de saúde, parques, estações, o que houver e
 | `cor` | Cor no mapa. |
 | `eliminar` | Opcional. `true` descarta as áreas além do limite. |
 | `mostrar` | Opcional. `false` faz o critério começar oculto no mapa. |
+| `fontes` | Opcional, no lugar de `arquivo` e `cor`: junta vários arquivos num cartão só. Lista de `{ "arquivo", "tipo", "cor" }`; vale o item mais próximo de qualquer arquivo. |
+
+Exemplo de critério com várias fontes (é assim que as escolas estão configuradas):
+
+```json
+{
+  "id": "escolas",
+  "nome": "Escola municipal por perto",
+  "rotulo": "Escola municipal",
+  "fontes": [
+    { "arquivo": "ESCOLAS_MUNICIPAIS_EDUCACAO_INFANTIL.json", "tipo": "EMEI (educação infantil)", "cor": "#ff6d00" },
+    { "arquivo": "ESCOLAS_MUNICIPAIS_ENSINO_FUNDAMENTAL.json", "tipo": "Ensino fundamental", "cor": "#111111" }
+  ],
+  "melhor": "perto",
+  "otimo": 500,
+  "limite": 2000,
+  "peso": 2
+}
+```
 
 Ocultar um critério no mapa é só visual: ele continua valendo na nota. Para tirá-lo da conta, ponha o peso em 0.
 
@@ -69,7 +90,7 @@ Os arquivos vêm do [BHMap](https://bhmap.pbh.gov.br/) (Prefeitura de Belo Horiz
 | `PONTO_ONIBUS.json` | Pontos de ônibus por linha |
 | `SETOR_CENSITARIO_2022.json` | Setores censitários (limite do município, bairros, população) |
 | `VILA_FAVELA.json` | Vilas, favelas e loteamentos públicos de interesse social |
-| `ESCOLAS_MUNICIPAIS_*.json` | Escolas municipais (critérios extras) |
+| `ESCOLAS_MUNICIPAIS_*.json` | Escolas municipais (critério extra "Escola municipal por perto") |
 
 Baixe as versões novas com os mesmos nomes, substitua na pasta e rode (requer [Node.js](https://nodejs.org/), sem dependências):
 

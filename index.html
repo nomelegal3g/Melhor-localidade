@@ -98,7 +98,7 @@
       <label class="l">Mínimo aceitável (m) <input type="number" min="0" max="3000" step="50" data-p="dMin"></label>
       <label class="l">Ideal a partir de (m) <input type="number" min="50" max="5000" step="50" data-p="dOk"></label>
       <label class="c"><input type="checkbox" data-p="filtrarV"> Eliminar áreas abaixo do mínimo</label>
-      <label class="c"><input type="checkbox" data-p="incluiLot"> Contar também loteamentos públicos de interesse social</label>
+      <p class="sub">Inclui os loteamentos públicos de interesse social.</p>
     </div>
 
     <div id="extras"></div>
@@ -129,7 +129,7 @@
       <label class="c"><input type="checkbox" data-p="baldeacao"> Permitir uma baldeação</label>
       <details><summary>Como a conta é feita</summary>
         <p>Tempo = caminhada até o ponto + espera + trecho no ônibus (distância ao longo do itinerário ÷ velocidade) + caminhada final. A caminhada usa 4,5 km/h e a distância em linha reta × 1,3.</p>
-        <p>Os arquivos não trazem horários nem frequência: a espera é a mesma para todas as linhas. Sublinhas de carnaval, madrugada, desvios e eventos ficam fora. Metrô e ônibus metropolitanos não estão nos dados.</p>
+        <p>Os arquivos não trazem horários nem frequência: a espera é a mesma para todas as linhas. Sublinhas de carnaval, madrugada, desvios e eventos ficam fora. A distância de vilas considera também os loteamentos públicos de interesse social. Metrô e ônibus metropolitanos não estão nos dados.</p>
         <p>Critérios de distância (escolas e outros declarados em <code>criterios.json</code>) usam linha reta. Das escolas, só a rede municipal está nos arquivos.</p>
         <p id="geradoEm"></p>
       </details>
@@ -183,8 +183,8 @@ const paraLL = (x, y) => UTM.paraLL(x + D.x0, y + D.y0);
 const deLL = (lat, lon) => { const [E, N] = UTM.deLL(lat, lon); return [E - D.x0, N - D.y0]; };
 
 // ---------- estado ----------
-const PADRAO = { wT: 5, wL: 2, wV: 3, tBom: 25, tMax: 60, sentido: 'media', filtrarT: false, raio: 500, nLinhas: 6, dMin: 200, dOk: 800,
-  filtrarV: true, incluiLot: false, corte: 70, camada: 'nota', soInteresse: false, verVilas: true, verPontos: false, vOnibus: 16, vMove: 24, espera: 8, baldeacao: true};
+const PADRAO = { wT: 5, wL: 2, wV: 3, tBom: 25, tMax: 60, sentido: 'media', filtrarT: false, raio: 500, nLinhas: 6, dMin: 50, dOk: 800,
+  filtrarV: true, corte: 70, camada: 'nota', soInteresse: false, verVilas: true, verPontos: false, vOnibus: 16, vMove: 24, espera: 8, baldeacao: true, ver: 3 };
 // critérios extras vindos de criterios.json (via dados.js): cada um ganha peso, limites e visibilidade próprios
 const X = D.extras || [];
 for (const c of X) {
@@ -194,6 +194,8 @@ for (const c of X) {
 const CHAVE = 'compraCasaBH.v1';
 let S = { p: { ...PADRAO }, destinos: [], imoveis: [] };
 try { const g = JSON.parse(localStorage.getItem(CHAVE)); if (g) S = { p: { ...PADRAO, ...g.p }, destinos: g.destinos || [], imoveis: g.imoveis || [] }; } catch (e) {}
+if (S.p.ver !== PADRAO.ver) { S.p.dMin = PADRAO.dMin; S.p.filtrarV = PADRAO.filtrarV; S.p.ver = PADRAO.ver; }   // novos padrões da versão 3 valem também para quem já tinha configuração salva
+for (const k of Object.keys(S.p)) if (!(k in PADRAO)) delete S.p[k];                                          // descarta chaves de versões antigas
 const P = S.p;
 if (!['nota', 't', 'l', 'v'].includes(P.camada) && !X.some(c => 'x:' + c.id === P.camada)) P.camada = 'nota';
 const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} };
@@ -349,7 +351,7 @@ function recalcular() {
   for (let i = 0; i < NC; i++) {
     cT[i] = Math.min(65000, tempoMedio(cx[i], cy[i]));
     cL[i] = linhasPerto(cx[i], cy[i]);
-    cV[i] = P.incluiLot ? Math.min(D.cel.dv[i], D.cel.dl[i]) : D.cel.dv[i];
+    cV[i] = Math.min(D.cel.dv[i], D.cel.dl[i]);   // vilas/favelas e loteamentos de interesse social
   }
   renotar();
   console.log('recalculado em', Math.round(performance.now() - t0), 'ms');
@@ -380,7 +382,7 @@ function avaliar(x, y) {
   const k = Math.floor(y / C) * D.nx + Math.floor(x / C), ci = celPorK.has(k) ? celPorK.get(k) : -1;
   const ls = []; const nl = linhasPerto(x, y, ls);
   let dv = INF, vila = null;
-  for (const v of D.vilas) { if (v.lot && !P.incluiLot) continue;
+  for (const v of D.vilas) {
     for (const pol of v.pols) { const d = distPoligono(pol, x, y); if (d < dv) { dv = d; vila = v; } } }
   const t = tempoMedio(x, y);
   const xs = X.map(c => { let d = INF, f = null;       // item mais próximo de cada critério extra
@@ -459,16 +461,20 @@ const camada = new Grade().addTo(mapa);
 const anelLL = an => { const o = []; for (let i = 0; i < an.length; i += 2) o.push(paraLL(an[i], an[i + 1])); return o; };
 const gVilas = L.layerGroup();
 for (const v of D.vilas) L.polygon(v.pols.map(p => p.map(anelLL)), { color: '#3a2a1a', weight: 1.2, dashArray: v.lot ? '4 3' : null, fillOpacity: .12, interactive: false }).addTo(gVilas);
+const fonteDe = (c, q) => (c.fontes && c.fontes[q.s || 0]) || {};
 for (const c of X) {          // camada visual de cada critério extra; ocultá-la não mexe na nota
   c.grupo = L.layerGroup();
   for (const q of c.f) {
-    const dica = `<b>${esc(q.n || c.rotulo)}</b>${q.n ? '<br>' + esc(c.rotulo) : ''}`;
-    (q.g === 0 ? L.circleMarker(paraLL(q.c[0], q.c[1]), { radius: 5, color: '#fff', weight: 1.5, fillColor: c.cor, fillOpacity: 1 })
-      : q.g === 1 ? L.polyline(q.c.map(anelLL), { color: c.cor, weight: 3 })
-      : L.polygon(q.c.map(anelLL), { color: c.cor, weight: 1.5, fillOpacity: .25 })).bindTooltip(dica, { sticky: true }).addTo(c.grupo);
+    const fo = fonteDe(c, q), cor = fo.cor || c.cor, tipo = fo.tipo || c.rotulo;
+    const dica = `<b>${esc(q.n || tipo)}</b>${q.n ? '<br>' + esc(tipo) : ''}`;
+    (q.g === 0 ? L.circleMarker(paraLL(q.c[0], q.c[1]), { radius: 5, color: '#fff', weight: 1.5, fillColor: cor, fillOpacity: 1 })
+      : q.g === 1 ? L.polyline(q.c.map(anelLL), { color: cor, weight: 3 })
+      : L.polygon(q.c.map(anelLL), { color: cor, weight: 1.5, fillOpacity: .25 })).bindTooltip(dica, { sticky: true }).addTo(c.grupo);
   }
 }
-const linhasExtras = (a, f) => X.map((c, j) => a.xs[j].f ? f(esc(c.rotulo) + ' mais perto', (a.xs[j].f.n ? esc(a.xs[j].f.n) + ' · ' : '') + fmtM(a.xs[j].d)) : '').join('');
+const linhasExtras = (a, f) => X.map((c, j) => { const q = a.xs[j].f; if (!q) return '';
+  const tipo = c.fontes && c.fontes.length > 1 ? fonteDe(c, q).tipo : '';
+  return f(esc(c.rotulo) + ' mais perto', (q.n ? esc(q.n) + ' · ' : '') + (tipo ? esc(tipo) + ' · ' : '') + fmtM(a.xs[j].d)); }).join('');
 const gLinhas = L.layerGroup().addTo(mapa), gRota = L.layerGroup().addTo(mapa), gPinos = L.layerGroup().addTo(mapa);
 
 function trecho(it, c1, c2) {      // pedaço do traçado entre duas distâncias acumuladas
@@ -546,7 +552,9 @@ function selecionar(i) { selecionado = selecionado === i ? -1 : i; desenharImove
 
 function montarExtras() {
   $('#extras').innerHTML = X.map(c => { const perto = c.melhor === 'perto';
-    return `<div class="cartao"><h3><span><i class="bola" style="background:${esc(c.cor)}"></i> ${esc(c.nome)}</span> <small style="white-space:nowrap">peso <span id="vw_${c.id}"></span></small></h3>
+    const varias = c.fontes && c.fontes.length > 1;
+    return `<div class="cartao"><h3><span>${varias ? '' : `<i class="bola" style="background:${esc(c.cor)}"></i> `}${esc(c.nome)}</span> <small style="white-space:nowrap">peso <span id="vw_${c.id}"></span></small></h3>
+      ${varias ? `<p class="sub" style="margin:0 0 4px">${c.fontes.map(o => `<span style="white-space:nowrap"><i class="bola" style="background:${esc(o.cor)}"></i> ${esc(o.tipo)}</span>`).join(' &nbsp; ')}<br>Vale a mais próxima, de qualquer tipo.</p>` : ''}
       <label class="l">Peso <input type="range" min="0" max="10" data-p="${c.kw}"></label>
       <label class="l">${perto ? 'Ótimo até (m)' : 'Ideal a partir de (m)'} <input type="number" min="0" max="20000" step="50" data-p="${c.ko}"></label>
       <label class="l">${perto ? 'Longe demais a partir de (m)' : 'Mínimo aceitável (m)'} <input type="number" min="0" max="20000" step="50" data-p="${c.kl}"></label>
@@ -566,7 +574,7 @@ function ligarControles() {
       if (k === 'verVilas') return void (P.verVilas ? gVilas.addTo(mapa) : gVilas.remove());
       const cv = X.find(c => c.kver === k); if (cv) return void (P[k] ? cv.grupo.addTo(mapa) : cv.grupo.remove());
       if (k === 'verPontos') return void camada.redesenhar();
-      (['raio', 'sentido', 'vOnibus', 'vMove', 'espera', 'baldeacao', 'incluiLot'].includes(k) ? recalcular : renotar)();
+      (['raio', 'sentido', 'vOnibus', 'vMove', 'espera', 'baldeacao'].includes(k) ? recalcular : renotar)();
     });
   });
 }
