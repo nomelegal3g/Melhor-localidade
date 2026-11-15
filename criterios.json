@@ -1,0 +1,36 @@
+{
+  "_como_usar": [
+    "Cada item de 'criterios' vira um cartão com peso na ferramenta. Depois de editar este arquivo, rode: node preparar_dados.js",
+    "arquivo: GeoJSON na mesma pasta (pontos, linhas ou polígonos; EPSG:31983 do BHMap ou latitude/longitude).",
+    "melhor: 'perto' (quanto mais perto, melhor) ou 'longe' (quanto mais longe, melhor).",
+    "otimo: distância em metros que recebe nota máxima. limite: distância em metros que recebe nota zero.",
+    "peso: de 0 a 10 (0 = aparece no mapa, mas não entra na nota). cor: cor no mapa.",
+    "Opcionais: campoNome (propriedade com o nome de cada item; padrão NOME), rotulo (nome curto nos detalhes), eliminar (true = descarta áreas além do limite), mostrar (false = começa oculto no mapa)."
+  ],
+  "criterios": [
+    {
+      "id": "emei",
+      "nome": "EMEI (educação infantil) por perto",
+      "rotulo": "EMEI",
+      "arquivo": "ESCOLAS_MUNICIPAIS_EDUCACAO_INFANTIL.json",
+      "campoNome": "NOME",
+      "melhor": "perto",
+      "otimo": 500,
+      "limite": 2000,
+      "peso": 2,
+      "cor": "#ff6d00"
+    },
+    {
+      "id": "fundamental",
+      "nome": "Escola municipal de ensino fundamental por perto",
+      "rotulo": "Escola fundamental",
+      "arquivo": "ESCOLAS_MUNICIPAIS_ENSINO_FUNDAMENTAL.json",
+      "campoNome": "NOME",
+      "melhor": "perto",
+      "otimo": 500,
+      "limite": 2000,
+      "peso": 2,
+      "cor": "#111111"
+    }
+  ]
+}

@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Compra Casa BH — áreas de interesse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --tinta:#1c2530; --suave:#5b6775; --linha:#dfe4ea; --fundo:#f6f7f9; --acento:#0b6bcb; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font: 14px/1.4 system-ui, "Segoe UI", sans-serif; color: var(--tinta); }
+  #app { display: flex; height: 100%; }
+  #painel { width: 380px; flex: none; overflow-y: auto; background: var(--fundo); border-right: 1px solid var(--linha); padding: 14px; }
+  #mapa { flex: 1; }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 18px 0 6px; }
+  .sub { color: var(--suave); font-size: 12.5px; margin: 0; }
+  .cartao { background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .cartao h3 { font-size: 14px; margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+  .cartao h3 small { font-weight: 400; color: var(--suave); }
+  label.l { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; }
+  label.c { display: flex; gap: 6px; align-items: flex-start; margin: 5px 0; font-size: 13px; }
+  input[type=number] { width: 72px; padding: 3px 5px; border: 1px solid var(--linha); border-radius: 5px; font: inherit; text-align: right; }
+  input[type=range] { flex: 1; min-width: 0; }
+  input[type=text], select { padding: 5px 7px; border: 1px solid var(--linha); border-radius: 5px; font: inherit; min-width: 0; }
+  button { font: inherit; padding: 5px 10px; border: 1px solid var(--linha); border-radius: 5px; background: #fff; cursor: pointer; }
+  button:hover { border-color: var(--acento); color: var(--acento); }
+  button.x { border: 0; background: none; padding: 0 4px; color: var(--suave); font-size: 16px; line-height: 1; }
+  .linha { display: flex; gap: 6px; align-items: center; }
+  .linha > input[type=text] { flex: 1; }
+  .aviso { font-size: 12.5px; color: #8a5a00; background: #fff6dd; border-radius: 5px; padding: 5px 8px; margin: 6px 0 0; }
+  .vazio { color: var(--suave); font-size: 12.5px; margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: right; font-weight: 600; color: var(--suave); padding: 3px 4px; border-bottom: 1px solid var(--linha); }
+  td { text-align: right; padding: 4px; border-bottom: 1px solid var(--linha); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  tr.sel td { background: #e9f2fc; }
+  tr.clic { cursor: pointer; }
+  td input[type=text] { width: 100%; border: 0; background: transparent; padding: 0; }
+  .nota { display: inline-block; min-width: 30px; text-align: center; padding: 1px 5px; border-radius: 10px; font-weight: 600; color: #fff; }
+  #legenda { margin-top: 8px; }
+  #legenda .barra { height: 10px; border-radius: 5px; }
+  #legenda .pontas { display: flex; justify-content: space-between; font-size: 12px; color: var(--suave); }
+  #resumo { font-size: 13px; margin: 6px 0 0; }
+  .rota { font-size: 12.5px; margin: 6px 0 0; padding-left: 0; list-style: none; }
+  .rota li { margin: 2px 0; }
+  .rota b { font-weight: 600; }
+  details { font-size: 13px; }
+  details summary { cursor: pointer; color: var(--suave); }
+  .pop { font-size: 13px; min-width: 230px; }
+  .pop b.t { font-size: 14px; }
+  .pop .bt { display: flex; gap: 6px; margin-top: 8px; }
+  .pop dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 6px 0 0; }
+  .pop dt { color: var(--suave); } .pop dd { margin: 0; text-align: right; }
+  .pino { border-radius: 50%; width: 26px; height: 26px; color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 4px #0007; }
+  .pino.d { background: #111; border-radius: 6px; } .pino.i { background: #c2185b; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; max-height: 104px; overflow-y: auto; margin-top: 6px; }
+  .chip { padding: 1px 7px; border-radius: 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .chip.sel { background: #d81b60; border-color: #d81b60; color: #fff; }
+  .infoLinha { font-size: 12.5px; margin: 6px 0 0; }
+  .bola { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #999; }
+  #erro { padding: 30px; max-width: 640px; }
+  @media (max-width: 760px) { #app { flex-direction: column-reverse; } #painel { width: 100%; height: 48%; border-right: 0; border-top: 1px solid var(--linha); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="painel">
+    <h1>Compra Casa BH</h1>
+    <p class="sub">Clique em qualquer lugar do mapa para avaliar o ponto, usá-lo como destino (trabalho, escola…) ou salvá-lo como imóvel candidato.</p>
+
+    <h2>Buscar endereço</h2>
+    <form class="linha" id="fBusca"><input type="text" id="busca" placeholder="Rua, número, bairro"><button>Ir</button></form>
+
+    <h2>Destinos do dia a dia</h2>
+    <div id="destinos"></div>
+
+    <h2>Critérios e pesos</h2>
+    <div class="cartao">
+      <h3>Tempo de ônibus até o destino <small>peso <span id="vwT"></span></small></h3>
+      <label class="l">Peso <input type="range" min="0" max="10" data-p="wT"></label>
+      <label class="l">Ótimo até (min) <input type="number" min="5" max="180" step="5" data-p="tBom"></label>
+      <label class="l">Inaceitável a partir de (min) <input type="number" min="10" max="240" step="5" data-p="tMax"></label>
+      <label class="l">Sentido
+        <select data-p="sentido"><option value="media">Ida e volta (média)</option><option value="ida">Só ida (casa → destino)</option><option value="volta">Só volta (destino → casa)</option></select></label>
+      <label class="c"><input type="checkbox" data-p="filtrarT"> Eliminar áreas acima do tempo inaceitável</label>
+      <div class="aviso" id="avisoDest" hidden>Sem destino definido: este critério está fora da nota.</div>
+    </div>
+    <div class="cartao">
+      <h3>Ônibus perto de casa <small>peso <span id="vwL"></span></small></h3>
+      <label class="l">Peso <input type="range" min="0" max="10" data-p="wL"></label>
+      <label class="l">Caminhada máxima até o ponto (m) <input type="number" min="100" max="1500" step="50" data-p="raio"></label>
+      <label class="l">Linhas para nota máxima <input type="number" min="1" max="40" data-p="nLinhas"></label>
+    </div>
+    <div class="cartao">
+      <h3>Distância de vilas e favelas <small>peso <span id="vwV"></span></small></h3>
+      <label class="l">Peso <input type="range" min="0" max="10" data-p="wV"></label>
+      <label class="l">Mínimo aceitável (m) <input type="number" min="0" max="3000" step="50" data-p="dMin"></label>
+      <label class="l">Ideal a partir de (m) <input type="number" min="50" max="5000" step="50" data-p="dOk"></label>
+      <label class="c"><input type="checkbox" data-p="filtrarV"> Eliminar áreas abaixo do mínimo</label>
+      <label class="c"><input type="checkbox" data-p="incluiLot"> Contar também loteamentos públicos de interesse social</label>
+    </div>
+
+    <div id="extras"></div>
+
+    <h2>Áreas de interesse</h2>
+    <div class="cartao">
+      <label class="l">Nota mínima <input type="range" min="0" max="100" data-p="corte"> <b id="vCorte"></b></label>
+      <label class="l">Colorir por
+        <select data-p="camada" id="selCamada"><option value="nota">Nota final</option><option value="t">Tempo até o destino</option><option value="l">Linhas por perto</option><option value="v">Distância de vilas</option></select></label>
+      <label class="c"><input type="checkbox" data-p="soInteresse"> Mostrar só as áreas de interesse</label>
+      <label class="c"><input type="checkbox" data-p="verVilas"> Contorno das vilas e favelas</label>
+      <label class="c"><input type="checkbox" data-p="verPontos"> Pontos de ônibus (com zoom próximo)</label>
+      <div id="legenda"><div class="barra"></div><div class="pontas"><span id="legA"></span><span id="legB"></span></div></div>
+      <p id="resumo"></p>
+    </div>
+
+    <h2>Imóveis candidatos</h2>
+    <div class="cartao" id="imoveis"></div>
+
+    <h2>Bairros com mais área de interesse</h2>
+    <div class="cartao" id="bairros"></div>
+
+    <h2>Premissas</h2>
+    <div class="cartao">
+      <label class="l">Velocidade do ônibus comum (km/h) <input type="number" min="5" max="60" data-p="vOnibus"></label>
+      <label class="l">Velocidade do MOVE (km/h) <input type="number" min="5" max="80" data-p="vMove"></label>
+      <label class="l">Espera por embarque (min) <input type="number" min="0" max="60" data-p="espera"></label>
+      <label class="c"><input type="checkbox" data-p="baldeacao"> Permitir uma baldeação</label>
+      <details><summary>Como a conta é feita</summary>
+        <p>Tempo = caminhada até o ponto + espera + trecho no ônibus (distância ao longo do itinerário ÷ velocidade) + caminhada final. A caminhada usa 4,5 km/h e a distância em linha reta × 1,3.</p>
+        <p>Os arquivos não trazem horários nem frequência: a espera é a mesma para todas as linhas. Sublinhas de carnaval, madrugada, desvios e eventos ficam fora. Metrô e ônibus metropolitanos não estão nos dados.</p>
+        <p>Critérios de distância (escolas e outros declarados em <code>criterios.json</code>) usam linha reta. Das escolas, só a rede municipal está nos arquivos.</p>
+        <p id="geradoEm"></p>
+      </details>
+      <p style="margin:8px 0 0"><button id="btPadrao">Restaurar pesos e premissas padrão</button></p>
+    </div>
+  </div>
+  <div id="mapa"></div>
+</div>
+
+<script src="dados.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+if (!window.DADOS) {
+  document.getElementById('app').innerHTML = '<div id="erro"><h1>Faltam os dados</h1><p>Rode <code>node preparar_dados.js</code> nesta pasta para gerar o arquivo <code>dados.js</code> a partir dos GeoJSON e recarregue a página.</p></div>';
+  throw new Error('dados.js ausente');
+}
+const D = window.DADOS, INF = 1e9;
+const VW = 75, FATOR = 1.3, RAIO_TROCA = 150, MAX_A_PE = 2500;   // m/min, desvio da caminhada, m, m
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- UTM 23S (SIRGAS 2000) <-> lat/lon, série de Krüger ----------
+const UTM = (() => {
+  const a = 6378137, f = 1 / 298.257222101, k0 = 0.9996, E0 = 500000, N0 = 1e7, l0 = -45 * Math.PI / 180;
+  const n = f / (2 - f), A = a / (1 + n) * (1 + n * n / 4 + n ** 4 / 64), e2n = 2 * Math.sqrt(n) / (1 + n);
+  const al = [n / 2 - 2 * n * n / 3 + 5 * n ** 3 / 16, 13 * n * n / 48 - 3 * n ** 3 / 5, 61 * n ** 3 / 240];
+  const be = [n / 2 - 2 * n * n / 3 + 37 * n ** 3 / 96, n * n / 48 + n ** 3 / 15, 17 * n ** 3 / 480];
+  const de = [2 * n - 2 * n * n / 3 - 2 * n ** 3, 7 * n * n / 3 - 8 * n ** 3 / 5, 56 * n ** 3 / 15];
+  return {
+    paraLL(E, N) {
+      const xi = (N - N0) / (k0 * A), eta = (E - E0) / (k0 * A);
+      let x = xi, e = eta;
+      for (let j = 1; j <= 3; j++) { x -= be[j - 1] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta); e -= be[j - 1] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta); }
+      const chi = Math.asin(Math.sin(x) / Math.cosh(e));
+      let phi = chi; for (let j = 1; j <= 3; j++) phi += de[j - 1] * Math.sin(2 * j * chi);
+      return [phi * 180 / Math.PI, (l0 + Math.atan2(Math.sinh(e), Math.cos(x))) * 180 / Math.PI];
+    },
+    deLL(lat, lon) {
+      const phi = lat * Math.PI / 180, dl = lon * Math.PI / 180 - l0, s = Math.sin(phi);
+      const t = Math.sinh(Math.atanh(s) - e2n * Math.atanh(e2n * s));
+      const x = Math.atan2(t, Math.cos(dl)), e = Math.atanh(Math.sin(dl) / Math.sqrt(1 + t * t));
+      let E = e, N = x;
+      for (let j = 1; j <= 3; j++) { E += al[j - 1] * Math.cos(2 * j * x) * Math.sinh(2 * j * e); N += al[j - 1] * Math.sin(2 * j * x) * Math.cosh(2 * j * e); }
+      return [E0 + k0 * A * E, N0 + k0 * A * N];
+    },
+  };
+})();
+// coordenadas internas: metros relativos a (x0, y0)
+const paraLL = (x, y) => UTM.paraLL(x + D.x0, y + D.y0);
+const deLL = (lat, lon) => { const [E, N] = UTM.deLL(lat, lon); return [E - D.x0, N - D.y0]; };
+
+// ---------- estado ----------
+const PADRAO = { wT: 5, wL: 2, wV: 3, tBom: 25, tMax: 60, sentido: 'media', filtrarT: false, raio: 500, nLinhas: 6, dMin: 200, dOk: 800,
+  filtrarV: true, incluiLot: false, corte: 70, camada: 'nota', soInteresse: false, verVilas: true, verPontos: false, vOnibus: 16, vMove: 24, espera: 8, baldeacao: true};
+// critérios extras vindos de criterios.json (via dados.js): cada um ganha peso, limites e visibilidade próprios
+const X = D.extras || [];
+for (const c of X) {
+  Object.assign(c, { kw: `x_${c.id}_w`, ko: `x_${c.id}_o`, kl: `x_${c.id}_l`, kel: `x_${c.id}_el`, kver: `x_${c.id}_ver` });
+  Object.assign(PADRAO, { [c.kw]: c.peso, [c.ko]: c.otimo, [c.kl]: c.limite, [c.kel]: c.eliminar, [c.kver]: c.mostrar });
+}
+const CHAVE = 'compraCasaBH.v1';
+let S = { p: { ...PADRAO }, destinos: [], imoveis: [] };
+try { const g = JSON.parse(localStorage.getItem(CHAVE)); if (g) S = { p: { ...PADRAO, ...g.p }, destinos: g.destinos || [], imoveis: g.imoveis || [] }; } catch (e) {}
+const P = S.p;
+if (!['nota', 't', 'l', 'v'].includes(P.camada) && !X.some(c => 'x:' + c.id === P.camada)) P.camada = 'nota';
+const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) {} };
+let selecionado = -1;   // índice do imóvel com rota desenhada
+
+// ---------- índices ----------
+const NN = D.nos.length / 2, nx = i => D.nos[2 * i], ny = i => D.nos[2 * i + 1];
+const BAL = 250, balde = new Map();
+for (let i = 0; i < NN; i++) { const k = Math.floor(nx(i) / BAL) * 4096 + Math.floor(ny(i) / BAL); (balde.get(k) || balde.set(k, []).get(k)).push(i); }
+function nosPerto(x, y, r, f) {
+  const a = Math.floor((x - r) / BAL), b = Math.floor((x + r) / BAL), c = Math.floor((y - r) / BAL), d = Math.floor((y + r) / BAL), r2 = r * r;
+  for (let i = a; i <= b; i++) for (let j = c; j <= d; j++) { const l = balde.get(i * 4096 + j); if (!l) continue;
+    for (const n of l) { const dx = nx(n) - x, dy = ny(n) - y, q = dx * dx + dy * dy; if (q <= r2) f(n, Math.sqrt(q)); } }
+}
+const NC = D.cel.k.length, C = D.celula;
+const cx = new Float32Array(NC), cy = new Float32Array(NC), cmx = new Float64Array(NC), cmy = new Float64Array(NC);
+const celPorK = new Map();
+for (let i = 0; i < NC; i++) {
+  const k = D.cel.k[i]; celPorK.set(k, i);
+  cx[i] = (k % D.nx + .5) * C; cy[i] = (Math.floor(k / D.nx) + .5) * C;
+  const [la, lo] = paraLL(cx[i], cy[i]);
+  cmx[i] = (lo + 180) / 360; cmy[i] = .5 - Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360)) / (2 * Math.PI);
+}
+const cT = new Float32Array(NC), cL = new Uint16Array(NC), cV = new Uint16Array(NC), cNota = new Float32Array(NC), cCor = new Float32Array(NC);
+
+// ---------- roteamento: até 2 ônibus, sem horários ----------
+function varrer(Aem, T, pred, volta) {
+  const esp = P.espera;
+  for (let k = 0; k < D.itins.length; k++) {
+    const it = D.itins[k], pn = it.pn, ch = it.pc_, v = (it.move ? P.vMove : P.vOnibus) * 1000 / 60, n = pn.length;
+    let best = INF, bj = -1;
+    if (!volta) for (let i = n - 1; i >= 0; i--) {         // T[nó] = minutos do embarque no nó até o destino
+      const no = pn[i], c = ch[i] / v;
+      if (best < INF) { const t = best - c + esp; if (t < T[no]) { T[no] = t; pred[3 * no] = k; pred[3 * no + 1] = i; pred[3 * no + 2] = bj; } }
+      const a = Aem[no] + c; if (a < best) { best = a; bj = i; }
+    } else for (let i = 0; i < n; i++) {                   // T[nó] = minutos do destino até descer no nó
+      const no = pn[i], c = ch[i] / v;
+      if (best < INF) { const t = best + c; if (t < T[no]) { T[no] = t; pred[3 * no] = k; pred[3 * no + 1] = bj; pred[3 * no + 2] = i; } }
+      const a = Aem[no] + esp - c; if (a < best) { best = a; bj = i; }
+    }
+  }
+}
+function rotear(x, y, volta) {
+  const A0 = new Float32Array(NN).fill(INF);
+  nosPerto(x, y, P.raio, (n, d) => { A0[n] = d * FATOR / VW; });
+  const T1 = new Float32Array(NN).fill(INF), p1 = new Int32Array(NN * 3).fill(-1);
+  varrer(A0, T1, p1, volta);
+  const R = { x, y, volta, A0, T1, p1, T2: null, p2: null, tr: null, T: T1 };
+  if (P.baldeacao) {
+    const A1 = new Float32Array(NN).fill(INF), tr = new Int32Array(NN).fill(-1);
+    for (let n = 0; n < NN; n++) if (T1[n] < INF) nosPerto(nx(n), ny(n), RAIO_TROCA, (m, d) => { const t = T1[n] + d * FATOR / VW; if (t < A1[m]) { A1[m] = t; tr[m] = n; } });
+    const T2 = new Float32Array(NN).fill(INF), p2 = new Int32Array(NN * 3).fill(-1);
+    varrer(A1, T2, p2, volta);
+    const T = new Float32Array(NN); for (let n = 0; n < NN; n++) T[n] = Math.min(T1[n], T2[n]);
+    Object.assign(R, { T2, p2, tr, T });
+  }
+  return R;
+}
+function tempoPonto(R, x, y) {          // minutos entre (x,y) e o destino de R; devolve também o nó usado
+  let t = INF, no = -1, dn = 0;
+  nosPerto(x, y, P.raio, (n, d) => { const v = R.T[n] + d * FATOR / VW; if (v < t) { t = v; no = n; dn = d; } });
+  const dd = Math.hypot(x - R.x, y - R.y);
+  if (dd <= MAX_A_PE && dd * FATOR / VW <= t) return { t: dd * FATOR / VW, no: -1, dn: dd };
+  return { t, no, dn };
+}
+function descreverRota(R, x, y) {
+  const r = tempoPonto(R, x, y);
+  if (r.t >= INF) return { t: INF };
+  if (r.no < 0) return { t: r.t, aPe: r.dn, pernas: [] };
+  const perna = (p, n) => { const it = D.itins[p[3 * n]], a = p[3 * n + 1], b = p[3 * n + 2];
+    return { it, a, b, min: (it.pc_[b] - it.pc_[a]) / ((it.move ? P.vMove : P.vOnibus) * 1000 / 60), sobe: it.pn[a], desce: it.pn[b] }; };
+  const n = r.no, dois = R.T2 && R.T2[n] < R.T1[n];
+  let pernas;
+  if (!dois) pernas = [perna(R.p1, n)];
+  else if (!R.volta) { const a = perna(R.p2, n); pernas = [a, perna(R.p1, R.tr[a.desce])]; }
+  else { const b = perna(R.p2, n); pernas = [perna(R.p1, R.tr[b.sobe]), b]; }
+  const casa = [x, y], dest = [R.x, R.y];
+  return { t: r.t, pernas, de: R.volta ? dest : casa, ate: R.volta ? casa : dest };
+}
+
+// ---------- critérios ----------
+let rotas = [];   // por destino: {ida, volta}
+function tempoMedio(x, y) {
+  if (!rotas.length) return INF;
+  let s = 0;
+  for (const r of rotas) {
+    let t = 0, q = 0;
+    if (r.ida) { t += tempoPonto(r.ida, x, y).t; q++; }
+    if (r.volta) { t += tempoPonto(r.volta, x, y).t; q++; }
+    if (t >= INF) return INF;
+    s += t / q;
+  }
+  return s / rotas.length;
+}
+const carimbo = new Int32Array(D.linhas.length).fill(-1); let selo = 0;
+function linhasPerto(x, y, lista) {
+  selo++; let q = 0;
+  nosPerto(x, y, P.raio, n => { for (let j = D.nlOff[n]; j < D.nlOff[n + 1]; j++) { const l = D.nlIdx[j]; if (carimbo[l] !== selo) { carimbo[l] = selo; q++; if (lista) lista.push(l); } } });
+  return q;
+}
+// nota 0..1 de um critério extra para a distância d (m); 'perto': menor é melhor; 'longe': maior é melhor
+function sExtra(c, d) {
+  const lo = Math.min(P[c.ko], P[c.kl]), hi = Math.max(P[c.ko], P[c.kl]), perto = c.melhor === 'perto';
+  if (hi === lo) return (perto ? d <= lo : d >= lo) ? 1 : 0;
+  const s = Math.max(0, Math.min(1, (d - lo) / (hi - lo)));
+  return perto ? 1 - s : s;
+}
+const elimExtra = (c, d) => P[c.kel] && (c.melhor === 'perto' ? d >= Math.max(P[c.ko], P[c.kl]) : d <= Math.min(P[c.ko], P[c.kl]));
+function notar(t, nl, dv, dx) {      // dx(j) = distância até o critério extra j
+  const temT = S.destinos.length > 0;
+  const sT = t >= INF ? 0 : Math.max(0, Math.min(1, (P.tMax - t) / Math.max(1, P.tMax - P.tBom)));
+  const sL = Math.min(1, nl / Math.max(1, P.nLinhas));
+  const sV = dv <= P.dMin ? (P.dOk <= P.dMin && dv >= P.dMin && dv > 0 ? 1 : 0) : Math.min(1, (dv - P.dMin) / Math.max(1, P.dOk - P.dMin));
+  let sx = 0, wx = 0, ex = false;
+  for (let j = 0; j < X.length; j++) { const c = X[j], d = dx(j), wj = P[c.kw]; if (wj) { sx += wj * sExtra(c, d); wx += wj; } if (elimExtra(c, d)) ex = true; }
+  const wT = temT ? P.wT : 0, w = wT + P.wL + P.wV + wx;
+  const elim = (temT && P.filtrarT && t >= P.tMax) || (P.filtrarV && dv < P.dMin) || ex;
+  return { sT, sL, sV, elim, nota: w ? 100 * (wT * sT + P.wL * sL + P.wV * sV + sx) / w : 0 };
+}
+
+let linhasDest = [];             // por destino: [{l, dist, its:[índices de itinerário]}]
+const vista = { d: -1, l: null };   // linha(s) do destino desenhadas no mapa; l = índice da linha ou 'todas'
+function linhasDoDestino(d) {
+  const perto = new Map(), m = new Map();
+  nosPerto(d.x, d.y, P.raio, (n, dist) => perto.set(n, dist));
+  D.itins.forEach((it, k) => {
+    let best = INF; for (const n of it.pn) { const v = perto.get(n); if (v !== undefined && v < best) best = v; }
+    if (best >= INF) return;
+    let o = m.get(it.l); if (!o) m.set(it.l, o = { l: it.l, dist: best, its: [] });
+    o.its.push(k); if (best < o.dist) o.dist = best;
+  });
+  return [...m.values()].sort((a, b) => D.linhas[a.l][0].localeCompare(D.linhas[b.l][0], 'pt', { numeric: true }));
+}
+function desenharLinhas() {
+  gLinhas.clearLayers();
+  const ls = linhasDest[vista.d]; if (!ls) return;
+  const todas = vista.l === 'todas';
+  for (const o of ls) if (todas || o.l === vista.l) for (const k of o.its)
+    L.polyline(anelLL(D.itins[k].pts), { color: '#d81b60', weight: todas ? 2 : 4.5, opacity: todas ? .5 : .9, interactive: false }).addTo(gLinhas);
+  if (!todas) {       // pontos da linha escolhida a uma caminhada do destino
+    const d = S.destinos[vista.d], o = ls.find(o => o.l === vista.l); if (!o) return;
+    const visto = new Set();
+    for (const k of o.its) for (const n of D.itins[k].pn) if (!visto.has(n) && Math.hypot(nx(n) - d.x, ny(n) - d.y) <= P.raio) { visto.add(n);
+      L.circleMarker(paraLL(nx(n), ny(n)), { radius: 5, color: '#fff', weight: 2, fillColor: '#d81b60', fillOpacity: 1, interactive: false }).addTo(gLinhas); }
+  }
+}
+function recalcular() {
+  const t0 = performance.now();
+  rotas = S.destinos.map(d => ({ ida: P.sentido !== 'volta' ? rotear(d.x, d.y, false) : null, volta: P.sentido !== 'ida' ? rotear(d.x, d.y, true) : null }));
+  linhasDest = S.destinos.map(linhasDoDestino);
+  if (vista.d >= S.destinos.length) vista.d = -1;
+  desenharDestinos(); desenharLinhas();
+  for (let i = 0; i < NC; i++) {
+    cT[i] = Math.min(65000, tempoMedio(cx[i], cy[i]));
+    cL[i] = linhasPerto(cx[i], cy[i]);
+    cV[i] = P.incluiLot ? Math.min(D.cel.dv[i], D.cel.dl[i]) : D.cel.dv[i];
+  }
+  renotar();
+  console.log('recalculado em', Math.round(performance.now() - t0), 'ms');
+}
+function renotar() {
+  let area = 0;
+  const porBairro = new Map();
+  let ci = 0; const dxCel = j => X[j].d[ci], cx_ = X.find(c => 'x:' + c.id === P.camada);
+  for (let i = 0; i < NC; i++) {
+    ci = i;
+    const t = cT[i] >= 65000 ? INF : cT[i], r = notar(t, cL[i], cV[i], dxCel);
+    cNota[i] = r.elim ? -1 : r.nota;
+    const ok = cNota[i] >= P.corte; if (ok) area++;
+    cCor[i] = r.elim ? -1 : P.camada === 'nota' ? r.nota / 100 : P.camada === 't' ? (S.destinos.length ? r.sT : -1) : P.camada === 'l' ? r.sL : cx_ ? sExtra(cx_, cx_.d[i]) : r.sV;
+    if (P.soInteresse && !ok) cCor[i] = -1;
+    const b = D.cel.b[i]; let o = porBairro.get(b); if (!o) porBairro.set(b, o = { b, n: 0, ok: 0, soma: 0 });
+    o.n++; if (ok) { o.ok++; } o.soma += Math.max(0, cNota[i]);
+  }
+  $('#resumo').innerHTML = `<b>${(area * C * C / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km²</b> com nota ≥ ${P.corte} — ${(100 * area / NC).toFixed(0)}% do município.`;
+  const top = [...porBairro.values()].filter(o => o.n >= 8 && o.ok).sort((a, b) => b.ok / b.n - a.ok / a.n || b.soma / b.n - a.soma / a.n).slice(0, 12);
+  $('#bairros').innerHTML = top.length
+    ? `<table><tr><th>Bairro</th><th>% da área</th><th>Nota média</th></tr>${top.map(o => `<tr class="clic" data-b="${o.b}"><td>${esc(D.bairros[o.b])}</td><td>${(100 * o.ok / o.n).toFixed(0)}%</td><td>${(o.soma / o.n).toFixed(0)}</td></tr>`).join('')}</table>`
+    : '<p class="vazio">Nenhum bairro com área acima da nota mínima. Reduza a nota mínima ou afrouxe os critérios.</p>';
+  desenharImoveis(); legenda(); camada.redesenhar();
+}
+
+function avaliar(x, y) {
+  const k = Math.floor(y / C) * D.nx + Math.floor(x / C), ci = celPorK.has(k) ? celPorK.get(k) : -1;
+  const ls = []; const nl = linhasPerto(x, y, ls);
+  let dv = INF, vila = null;
+  for (const v of D.vilas) { if (v.lot && !P.incluiLot) continue;
+    for (const pol of v.pols) { const d = distPoligono(pol, x, y); if (d < dv) { dv = d; vila = v; } } }
+  const t = tempoMedio(x, y);
+  const xs = X.map(c => { let d = INF, f = null;       // item mais próximo de cada critério extra
+    for (const q of c.f) { const v = q.g === 0 ? Math.hypot(x - q.c[0], y - q.c[1]) : q.g === 2 ? distPoligono(q.c, x, y) : distLinha(q.c, x, y); if (v < d) { d = v; f = q; } }
+    return { d, f }; });
+  return { x, y, ci, nl, ls, dv, vila, t, xs, ...notar(t, nl, dv, j => xs[j].d), bairro: ci >= 0 ? D.bairros[D.cel.b[ci]] : null, regional: ci >= 0 ? D.regionais[D.cel.r[ci]] : null, dens: ci >= 0 ? D.cel.dens[ci] : null };
+}
+function distLinha(linhas, x, y) {
+  let m2 = Infinity;
+  for (const an of linhas) for (let i = 2; i < an.length; i += 2) {
+    const ax = an[i - 2], ay = an[i - 1], dx = an[i] - ax, dy = an[i + 1] - ay, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((x - ax) * dx + (y - ay) * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const ex = x - ax - t * dx, ey = y - ay - t * dy, q = ex * ex + ey * ey; if (q < m2) m2 = q;
+  }
+  return Math.sqrt(m2);
+}
+function distPoligono(aneis, x, y) {
+  let dentro = false, m2 = Infinity;
+  for (const an of aneis) for (let i = 0, j = an.length - 2; i < an.length; j = i, i += 2) {
+    const ax = an[j], ay = an[j + 1], bx = an[i], by = an[i + 1];
+    if ((by > y) !== (ay > y) && x < (ax - bx) * (y - by) / (ay - by) + bx) dentro = !dentro;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((x - ax) * dx + (y - ay) * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const ex = x - ax - t * dx, ey = y - ay - t * dy, q = ex * ex + ey * ey; if (q < m2) m2 = q;
+  }
+  return dentro ? 0 : Math.sqrt(m2);
+}
+
+// ---------- cores ----------
+const RAMPA = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];   // roxo (pior) -> verde -> amarelo (melhor)
+function cor(v) { v = Math.max(0, Math.min(1, v)) * 4; const i = Math.min(3, Math.floor(v)), f = v - i, a = RAMPA[i], b = RAMPA[i + 1];
+  return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`; }
+const CORES = Array.from({ length: 33 }, (_, i) => cor(i / 32));
+const fmtMin = t => t >= INF ? 'sem rota' : Math.round(t) + ' min';
+const fmtM = d => d >= D.capVila ? '> ' + D.capVila / 1000 + ' km' : d >= 1000 ? (d / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(d) + ' m';
+const seloNota = r => r.elim ? '<span class="nota" style="background:#888">fora</span>' : `<span class="nota" style="background:${cor(r.nota / 100)};color:${r.nota > 62 ? '#111' : '#fff'}">${Math.round(r.nota)}</span>`;
+function legenda() {
+  $('#legenda .barra').style.background = `linear-gradient(90deg,${[0, .25, .5, .75, 1].map(cor).join(',')})`;
+  const c = X.find(c => 'x:' + c.id === P.camada), lo = c && Math.min(P[c.ko], P[c.kl]), hi = c && Math.max(P[c.ko], P[c.kl]);
+  const [a, b] = c ? (c.melhor === 'perto' ? [`${hi} m ou mais`, `até ${lo} m`] : [`até ${lo} m`, `${hi} m ou mais`])
+    : { nota: ['nota 0', 'nota 100'], t: [`${P.tMax} min ou mais`, `até ${P.tBom} min`], l: ['nenhuma linha', `${P.nLinhas} linhas ou mais`], v: [`até ${P.dMin} m`, `${P.dOk} m ou mais`] }[P.camada];
+  $('#legA').textContent = a; $('#legB').textContent = b;
+}
+
+// ---------- mapa ----------
+const mapa = L.map('mapa', { preferCanvas: true }).setView(paraLL(13200, 15500), 12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap | dados: PBH/BHMap, IBGE' }).addTo(mapa);
+
+const Grade = L.Layer.extend({
+  onAdd(m) { this.cv = L.DomUtil.create('canvas', 'leaflet-zoom-hide'); this.cv.style.pointerEvents = 'none'; m.getPanes().overlayPane.appendChild(this.cv);
+    m.on('moveend resize', this.redesenhar, this); this.redesenhar(); },
+  onRemove(m) { this.cv.remove(); m.off('moveend resize', this.redesenhar, this); },
+  redesenhar() {
+    const m = this._map; if (!m) return;
+    const tam = m.getSize(), tl = m.containerPointToLayerPoint([0, 0]), o = m.getPixelOrigin(), z = m.getZoom(), E = 256 * 2 ** z;
+    L.DomUtil.setPosition(this.cv, tl); this.cv.width = tam.x; this.cv.height = tam.y;
+    const g = this.cv.getContext('2d'), ox = o.x + tl.x, oy = o.y + tl.y;
+    const lado = Math.max(1, E * C / (40075016.686 * Math.cos(-19.92 * Math.PI / 180))) + .7, h = lado / 2;
+    g.globalAlpha = z >= 15 ? .42 : .58;
+    for (let i = 0; i < NC; i++) {
+      const v = cCor[i]; if (v < 0) continue;
+      const px = cmx[i] * E - ox, py = cmy[i] * E - oy;
+      if (px < -lado || py < -lado || px > tam.x + lado || py > tam.y + lado) continue;
+      g.fillStyle = CORES[Math.round(Math.min(1, v) * 32)]; g.fillRect(px - h, py - h, lado, lado);
+    }
+    if (P.verPontos && z >= 15) {
+      g.globalAlpha = 1; g.fillStyle = '#111'; g.strokeStyle = '#fff'; g.lineWidth = 1.5;
+      const b = m.getBounds(), [x1, y1] = deLL(b.getSouth(), b.getWest()), [x2, y2] = deLL(b.getNorth(), b.getEast());
+      nosPerto((x1 + x2) / 2, (y1 + y2) / 2, Math.hypot(x2 - x1, y2 - y1) / 2, n => {
+        const p = m.latLngToContainerPoint(paraLL(nx(n), ny(n))); g.beginPath(); g.arc(p.x, p.y, 3.5, 0, 7); g.fill(); g.stroke(); });
+    }
+  },
+});
+const camada = new Grade().addTo(mapa);
+
+const anelLL = an => { const o = []; for (let i = 0; i < an.length; i += 2) o.push(paraLL(an[i], an[i + 1])); return o; };
+const gVilas = L.layerGroup();
+for (const v of D.vilas) L.polygon(v.pols.map(p => p.map(anelLL)), { color: '#3a2a1a', weight: 1.2, dashArray: v.lot ? '4 3' : null, fillOpacity: .12, interactive: false }).addTo(gVilas);
+for (const c of X) {          // camada visual de cada critério extra; ocultá-la não mexe na nota
+  c.grupo = L.layerGroup();
+  for (const q of c.f) {
+    const dica = `<b>${esc(q.n || c.rotulo)}</b>${q.n ? '<br>' + esc(c.rotulo) : ''}`;
+    (q.g === 0 ? L.circleMarker(paraLL(q.c[0], q.c[1]), { radius: 5, color: '#fff', weight: 1.5, fillColor: c.cor, fillOpacity: 1 })
+      : q.g === 1 ? L.polyline(q.c.map(anelLL), { color: c.cor, weight: 3 })
+      : L.polygon(q.c.map(anelLL), { color: c.cor, weight: 1.5, fillOpacity: .25 })).bindTooltip(dica, { sticky: true }).addTo(c.grupo);
+  }
+}
+const linhasExtras = (a, f) => X.map((c, j) => a.xs[j].f ? f(esc(c.rotulo) + ' mais perto', (a.xs[j].f.n ? esc(a.xs[j].f.n) + ' · ' : '') + fmtM(a.xs[j].d)) : '').join('');
+const gLinhas = L.layerGroup().addTo(mapa), gRota = L.layerGroup().addTo(mapa), gPinos = L.layerGroup().addTo(mapa);
+
+function trecho(it, c1, c2) {      // pedaço do traçado entre duas distâncias acumuladas
+  const p = it.pts, o = []; let ac = 0;
+  for (let i = 2; i < p.length; i += 2) {
+    const L0 = Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1]), a = ac, b = ac + L0; ac = b;
+    if (b < c1 || !L0) continue;
+    if (!o.length) { const t = Math.max(0, (c1 - a) / L0); o.push(paraLL(p[i - 2] + t * (p[i] - p[i - 2]), p[i - 1] + t * (p[i + 1] - p[i - 1]))); }
+    if (b >= c2) { const t = (c2 - a) / L0; o.push(paraLL(p[i - 2] + t * (p[i] - p[i - 2]), p[i - 1] + t * (p[i + 1] - p[i - 1]))); break; }
+    o.push(paraLL(p[i], p[i + 1]));
+  }
+  return o;
+}
+const CORES_PERNA = ['#0b6bcb', '#d9480f'];
+function desenharRota(r) {
+  if (!r.pernas) return;
+  const aPe = (a, b) => L.polyline([paraLL(...a), paraLL(...b)], { color: '#222', weight: 3, dashArray: '2 7' }).addTo(gRota);
+  if (!r.pernas.length) return;
+  let ant = r.de;
+  r.pernas.forEach((p, i) => {
+    const s = [nx(p.sobe), ny(p.sobe)], d = [nx(p.desce), ny(p.desce)];
+    aPe(ant, s); L.polyline(trecho(p.it, p.it.pc_[p.a], p.it.pc_[p.b]), { color: '#fff', weight: 8, opacity: .9 }).addTo(gRota);
+    L.polyline(trecho(p.it, p.it.pc_[p.a], p.it.pc_[p.b]), { color: CORES_PERNA[i], weight: 4.5 }).addTo(gRota); ant = d;
+  });
+  aPe(ant, r.ate);
+}
+function textoRota(r, rotulo) {
+  if (r.t >= INF) return `<li><b>${rotulo}:</b> sem rota com até ${P.baldeacao ? 'uma baldeação' : 'um ônibus'}</li>`;
+  if (!r.pernas.length) return `<li><b>${rotulo} ${fmtMin(r.t)}:</b> a pé (${fmtM(r.aPe)} em linha reta)</li>`;
+  return `<li><b>${rotulo} ${fmtMin(r.t)}:</b> ` + r.pernas.map((p, i) => `<span style="color:${CORES_PERNA[i]};font-weight:600">${esc(D.linhas[p.it.l][0])}</span> ${esc(D.linhas[p.it.l][1] || '')} (${Math.round(p.min)} min, ${p.b - p.a} pontos)`).join(' → ') + '</li>';
+}
+const resumoRota = r => fmtMin(r.t) + (r.pernas && r.pernas.length ? ' · ' + r.pernas.map(p => `<b>${esc(D.linhas[p.it.l][0])}</b>`).join(' → ') : r.t < INF ? ' · a pé' : '');
+function rotasDoPonto(x, y) {      // [{destino, ida, volta}]
+  return rotas.map((r, i) => ({ d: S.destinos[i], ida: r.ida && descreverRota(r.ida, x, y), volta: r.volta && descreverRota(r.volta, x, y) }));
+}
+
+function pino(tipo, txt) { return L.divIcon({ className: '', html: `<div class="pino ${tipo}">${txt}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }); }
+function desenharPinos() {
+  gPinos.clearLayers();
+  S.destinos.forEach((d, i) => L.marker(paraLL(d.x, d.y), { icon: pino('d', 'D' + (i + 1)), title: d.nome, zIndexOffset: 500 }).addTo(gPinos));
+  S.imoveis.forEach((d, i) => L.marker(paraLL(d.x, d.y), { icon: pino('i', i + 1), title: d.nome }).on('click', () => selecionar(i)).addTo(gPinos));
+}
+
+// ---------- painel ----------
+function desenharDestinos() {
+  $('#destinos').innerHTML = S.destinos.length ? S.destinos.map((d, i) => {
+    const ls = linhasDest[i] || [], sel = vista.d === i ? ls.find(o => o.l === vista.l) : null;
+    return `<div class="cartao"><div class="linha"><span class="pino d" style="flex:none">D${i + 1}</span><input type="text" value="${esc(d.nome)}" data-dn="${i}"><button class="x" data-dx="${i}" title="Remover">×</button></div>
+      <p class="infoLinha">${ls.length ? `<b>${ls.length} linhas</b> param a até ${P.raio} m daqui. Clique numa para ver o trajeto:` : `Nenhuma linha regular com ponto a até ${P.raio} m. Aumente a caminhada máxima.`}</p>
+      ${ls.length ? `<div class="chips">${ls.map(o => `<button class="chip ${vista.d === i && vista.l === o.l ? 'sel' : ''}" data-ld="${i}" data-ll="${o.l}" title="${esc(D.linhas[o.l][1] || '')} · ponto a ${Math.round(o.dist)} m">${esc(D.linhas[o.l][0])}</button>`).join('')}</div>
+      <p class="infoLinha"><button class="chip ${vista.d === i && vista.l === 'todas' ? 'sel' : ''}" data-ld="${i}" data-ll="todas">Ver todas no mapa</button></p>` : ''}
+      ${sel ? `<p class="infoLinha"><b style="color:#d81b60">${esc(D.linhas[sel.l][0])}</b> ${esc(D.linhas[sel.l][1] || '')} — ponto mais próximo a ${Math.round(sel.dist)} m do destino.</p>` : ''}</div>`;
+  }).join('') : '<p class="vazio">Nenhum destino ainda. Clique no mapa (ou busque um endereço) e escolha “Usar como destino”.</p>';
+  $('#avisoDest').hidden = S.destinos.length > 0;
+}
+function desenharImoveis() {
+  const el = $('#imoveis');
+  if (!S.imoveis.length) { el.innerHTML = '<p class="vazio">Clique no mapa no endereço de um imóvel e escolha “Salvar como imóvel” para comparar.</p>'; gRota.clearLayers(); return; }
+  const av = S.imoveis.map(d => avaliar(d.x, d.y));
+  let h = `<table><tr><th>Imóvel</th><th>Nota</th><th>Ônibus</th><th>Linhas</th><th>Vila</th><th></th></tr>` + S.imoveis.map((d, i) => { const a = av[i];
+    return `<tr class="clic ${i === selecionado ? 'sel' : ''}" data-im="${i}"><td><span style="color:#c2185b;font-weight:700">${i + 1}</span> <input type="text" value="${esc(d.nome)}" data-in="${i}" style="width:82%"></td><td>${seloNota(a)}</td><td>${S.destinos.length ? fmtMin(a.t) : '—'}</td><td>${a.nl}</td><td>${fmtM(a.dv)}</td><td><button class="x" data-ix="${i}" title="Remover">×</button></td></tr>`; }).join('') + '</table>';
+  gRota.clearLayers();
+  if (selecionado >= 0 && S.imoveis[selecionado]) {
+    const d = S.imoveis[selecionado], a = av[selecionado], rs = rotasDoPonto(d.x, d.y);
+    h += `<ul class="rota"><li>${esc(a.bairro || 'fora do município')}${a.regional ? ' · regional ' + esc(a.regional) : ''}${a.dens ? ' · ' + a.dens + ' hab/ha no setor' : ''}</li>`;
+    h += `<li>Vila mais próxima: ${a.vila ? esc(a.vila.nome) + ' a ' + fmtM(a.dv) : '—'}</li>`;
+    h += linhasExtras(a, (r, v) => `<li>${r}: ${v}</li>`);
+    rs.forEach((r, i) => { h += `<li style="margin-top:5px"><b>${esc(r.d.nome)}</b></li>` + (r.ida ? textoRota(r.ida, 'Ida') : '') + (r.volta ? textoRota(r.volta, 'Volta') : '');
+      desenharRota(r.ida || r.volta); });
+    h += `<li style="margin-top:5px;color:var(--suave)">${a.nl} linhas a até ${P.raio} m: ${a.ls.map(l => esc(D.linhas[l][0])).sort().join(', ') || '—'}</li></ul>`;
+  } else h += '<p class="vazio">Clique num imóvel para ver a rota e os detalhes.</p>';
+  el.innerHTML = h;
+}
+function selecionar(i) { selecionado = selecionado === i ? -1 : i; desenharImoveis(); if (selecionado >= 0) mapa.panTo(paraLL(S.imoveis[i].x, S.imoveis[i].y)); }
+
+function montarExtras() {
+  $('#extras').innerHTML = X.map(c => { const perto = c.melhor === 'perto';
+    return `<div class="cartao"><h3><span><i class="bola" style="background:${esc(c.cor)}"></i> ${esc(c.nome)}</span> <small style="white-space:nowrap">peso <span id="vw_${c.id}"></span></small></h3>
+      <label class="l">Peso <input type="range" min="0" max="10" data-p="${c.kw}"></label>
+      <label class="l">${perto ? 'Ótimo até (m)' : 'Ideal a partir de (m)'} <input type="number" min="0" max="20000" step="50" data-p="${c.ko}"></label>
+      <label class="l">${perto ? 'Longe demais a partir de (m)' : 'Mínimo aceitável (m)'} <input type="number" min="0" max="20000" step="50" data-p="${c.kl}"></label>
+      <label class="c"><input type="checkbox" data-p="${c.kel}"> ${perto ? 'Eliminar áreas além do limite' : 'Eliminar áreas abaixo do mínimo'}</label>
+      <label class="c"><input type="checkbox" data-p="${c.kver}"> <span>Mostrar no mapa <span style="color:var(--suave)">(só visual: oculto, continua valendo na nota)</span></span></label>
+      <div class="aviso" id="av_${c.id}" hidden>Peso 0: este critério não entra na nota.</div></div>`; }).join('');
+  $('#selCamada').insertAdjacentHTML('beforeend', X.map(c => `<option value="x:${c.id}">${esc(c.nome)}</option>`).join(''));
+}
+function ligarControles() {
+  document.querySelectorAll('[data-p]').forEach(el => {
+    const k = el.dataset.p;
+    if (el.type === 'checkbox') el.checked = P[k]; else el.value = P[k];
+    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => {
+      P[k] = el.type === 'checkbox' ? el.checked : el.tagName === 'SELECT' ? el.value : Math.max(+el.min || 0, Math.min(+el.max || 1e9, +el.value || 0));
+      if (el.type === 'number') el.value = P[k];
+      rotulos(); salvar();
+      if (k === 'verVilas') return void (P.verVilas ? gVilas.addTo(mapa) : gVilas.remove());
+      const cv = X.find(c => c.kver === k); if (cv) return void (P[k] ? cv.grupo.addTo(mapa) : cv.grupo.remove());
+      if (k === 'verPontos') return void camada.redesenhar();
+      (['raio', 'sentido', 'vOnibus', 'vMove', 'espera', 'baldeacao', 'incluiLot'].includes(k) ? recalcular : renotar)();
+    });
+  });
+}
+function rotulos() { $('#vwT').textContent = P.wT; $('#vwL').textContent = P.wL; $('#vwV').textContent = P.wV; for (const c of X) { $('#vw_' + c.id).textContent = P[c.kw]; $('#av_' + c.id).hidden = P[c.kw] > 0; } $('#vCorte').textContent = P.corte; }
+
+$('#painel').addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.ld) { const d = +t.dataset.ld, l = t.dataset.ll === 'todas' ? 'todas' : +t.dataset.ll;
+    if (vista.d === d && vista.l === l) vista.d = -1; else { vista.d = d; vista.l = l; }
+    desenharDestinos(); desenharLinhas(); }
+  else if (t.dataset.dx) { S.destinos.splice(+t.dataset.dx, 1); vista.d = -1; tudo(); }
+  else if (t.dataset.ix) { S.imoveis.splice(+t.dataset.ix, 1); selecionado = -1; tudo(); }
+  else if (t.tagName !== 'INPUT' && t.closest('[data-im]')) selecionar(+t.closest('[data-im]').dataset.im);
+  else if (t.closest('[data-b]')) { const b = +t.closest('[data-b]').dataset.b, pts = [];
+    for (let i = 0; i < NC; i++) if (D.cel.b[i] === b) pts.push(paraLL(cx[i], cy[i])); mapa.fitBounds(L.latLngBounds(pts).pad(.3)); }
+});
+$('#painel').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.dn) { S.destinos[+t.dataset.dn].nome = t.value || 'Destino'; salvar(); desenharPinos(); desenharImoveis(); }
+  if (t.dataset.in) { S.imoveis[+t.dataset.in].nome = t.value || 'Imóvel'; salvar(); desenharPinos(); }
+});
+function tudo() { salvar(); desenharPinos(); recalcular(); }
+
+// ---------- clique no mapa ----------
+let ultimo = null;
+function abrirPonto(x, y, nome) {
+  const a = avaliar(x, y); ultimo = { x, y, nome };
+  const rs = rotasDoPonto(x, y);
+  const h = `<div class="pop"><b class="t">${esc(nome || a.bairro || 'Ponto fora do município')}</b> ${a.ci >= 0 ? seloNota(a) : ''}
+    <dl>${nome && a.bairro ? `<dt>Bairro</dt><dd>${esc(a.bairro)}</dd>` : ''}
+    ${rs.map(r => `<dt>${esc(r.d.nome)}</dt><dd>${[r.ida && 'ida ' + resumoRota(r.ida), r.volta && 'volta ' + resumoRota(r.volta)].filter(Boolean).map(t => `<span style="white-space:nowrap">${t}</span>`).join('<br>')}</dd>`).join('')}
+    <dt>Linhas a até ${P.raio} m</dt><dd>${a.nl}</dd>
+    <dt>Vila mais próxima</dt><dd>${a.vila ? esc(a.vila.nome) + ' · ' + fmtM(a.dv) : '—'}</dd>${linhasExtras(a, (r, v) => `<dt>${r}</dt><dd>${v}</dd>`)}</dl>
+    <div class="bt"><button onclick="usar('d')">Usar como destino</button><button onclick="usar('i')">Salvar como imóvel</button></div></div>`;
+  L.popup({ maxWidth: 320 }).setLatLng(paraLL(x, y)).setContent(h).openOn(mapa);
+}
+window.usar = tipo => {
+  if (!ultimo) return; mapa.closePopup();
+  if (tipo === 'd') S.destinos.push({ nome: ultimo.nome || 'Destino ' + (S.destinos.length + 1), x: ultimo.x, y: ultimo.y });
+  else { S.imoveis.push({ nome: ultimo.nome || 'Imóvel ' + (S.imoveis.length + 1), x: ultimo.x, y: ultimo.y }); selecionado = S.imoveis.length - 1; }
+  tudo();
+};
+mapa.on('click', e => { const [x, y] = deLL(e.latlng.lat, e.latlng.lng); abrirPonto(x, y); });
+
+$('#fBusca').addEventListener('submit', async e => {
+  e.preventDefault(); const q = $('#busca').value.trim(); if (!q) return;
+  try {
+    const r = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&viewbox=-44.07,-19.77,-43.85,-20.07&bounded=1&q=' + encodeURIComponent(q + ', Belo Horizonte'))).json();
+    if (!r.length) return alert('Endereço não encontrado em Belo Horizonte.');
+    const la = +r[0].lat, lo = +r[0].lon, [x, y] = deLL(la, lo);
+    mapa.setView([la, lo], 16); abrirPonto(x, y, q);
+  } catch (err) { alert('A busca de endereço falhou (sem internet?). Você ainda pode clicar direto no mapa.'); }
+});
+
+// ---------- início ----------
+$('#geradoEm').textContent = `Dados processados em ${new Date(D.geradoEm).toLocaleDateString('pt-BR')}: ${NN.toLocaleString('pt-BR')} pontos, ${D.itins.length} itinerários regulares, ${D.vilas.length} vilas/favelas/loteamentos.`;
+montarExtras(); ligarControles(); rotulos(); if (P.verVilas) gVilas.addTo(mapa);
+for (const c of X) if (P[c.kver]) c.grupo.addTo(mapa);
+$('#btPadrao').addEventListener('click', () => { if (confirm('Voltar todos os pesos, limites e premissas ao padrão? Destinos e imóveis são mantidos.')) { S.p = { ...PADRAO }; salvar(); location.reload(); } });
+desenharPinos(); recalcular();
+</script>
+</body>
+</html>
